@@ -15,6 +15,10 @@ from flask_wtf.csrf import generate_csrf
 from dotenv import load_dotenv
 from flask_login import current_user
 from flask_socketio import emit
+from datetime import datetime
+from flask_wtf import FlaskForm
+from flask_wtf.file import FileField, FileAllowed
+from wtforms import TextAreaField, SubmitField
 
 
 
@@ -25,12 +29,26 @@ app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'default_secret_key')
 
 # Create the SQLAlchemy instance and bind it to the app
 app.config['UPLOAD_FOLDER'] = 'static'
+app.static_folder = 'static'
 db = SQLAlchemy(app)
 bcrypt = Bcrypt(app)  # Initialize Flask-Bcrypt
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
 socketio = SocketIO(app)
 
+
+class CaseFile(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    case_number = db.Column(db.String(20), unique=True, nullable=False)
+    case_name = db.Column(db.String(50), nullable=False)
+    date_opened = db.Column(db.Date, nullable=False)
+    notes = db.relationship('CaseNote', backref='case_file', lazy=True)
+
+class CaseNote(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    note_text = db.Column(db.Text, nullable=False)
+    file_path = db.Column(db.String(255), nullable=True)
+    case_file_id = db.Column(db.Integer, db.ForeignKey('case_file.id'), nullable=False)
 
 class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
@@ -68,6 +86,10 @@ class Ticket(db.Model):
     chat_messages = db.Column(db.Text, default='', nullable=True)
     user_email = db.Column(db.String(120), nullable=True)  # Add this line
 
+class AddNoteForm(FlaskForm):
+    note_text = TextAreaField('Note', validators=[FileRequired()])
+    file = FileField('Attachment', validators=[FileAllowed(['pdf', 'png', 'jpg', 'jpeg', 'gif'])])
+    submit = SubmitField('Add Note')
 
 def get_profile_by_id(profile_id):
     return Profile.query.get(profile_id)
@@ -185,6 +207,113 @@ def view_profiles():
         return render_template('view_profiles.html', profiles=profiles, search_query=search_query)
 
     return render_template('view_profiles.html', profiles=[], search_query='')
+
+@app.route('/create_case_file', methods=['GET', 'POST'])
+@staff_login_required
+def create_case_file():
+    if request.method == 'POST':
+        case_number = request.form.get('case_number')
+        case_name = request.form.get('case_name')
+        date_opened = datetime.strptime(request.form.get('date_opened'), '%Y-%m-%d').date()
+
+        # Create a new case file with the provided information
+        new_case_file = CaseFile(case_number=case_number, case_name=case_name, date_opened=date_opened)
+        db.session.add(new_case_file)
+        db.session.commit()
+
+        flash('Case file created successfully!', 'success')
+        return redirect(url_for('staff_dashboard'))
+
+    return render_template('create_case_file.html')
+
+@app.route('/add_note_to_case/<case_number>', methods=['POST'])
+@login_required
+def add_note_to_case(case_number):
+    case_file = CaseFile.query.filter_by(case_number=case_number).first_or_404()
+    form = AddNoteForm()
+
+    if form.validate_on_submit():
+        # Handle adding notes to the case file
+        note_text = form.note_text.data
+        attachment = form.file.data
+
+        if attachment:
+            # Handle file upload and store the filename in the note
+            filename = secure_filename(attachment.filename)
+            attachment.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+        else:
+            filename = None
+
+        # Create a new note with the provided information
+        new_note = CaseNote(note_text=note_text, attachment_filename=filename)
+        case_file.notes.append(new_note)  # Assuming 'notes' is a relationship in CaseFile model
+        db.session.commit()
+
+    return redirect(url_for('view_case_file', case_number=case_number))
+
+
+
+@app.route('/view_case_file/<case_number>', methods=['GET', 'POST'])
+@login_required
+def view_case_file(case_number):
+    case_file = CaseFile.query.filter_by(case_number=case_number).first_or_404()
+
+    if request.method == 'POST':
+        # Handle adding notes to the case file
+        note_text = request.form.get('note')
+        if note_text:
+            new_note = CaseNote(note_text=note_text, case_file=case_file)
+            db.session.add(new_note)
+            db.session.commit()
+
+    # Fetch all notes associated with the case file
+    notes = CaseNote.query.filter_by(case_file_id=case_file.id).all()
+
+    return render_template('view_case_file.html', case_file=case_file, notes=notes)
+
+
+# Add a route for editing a specific case file
+@app.route('/edit_case_file/<case_number>', methods=['POST'])
+@login_required
+def edit_case_file(case_number):
+    case_file = CaseFile.query.filter_by(case_number=case_number).first()
+    if case_file:
+        # Update the case file fields based on the form data
+        case_file.edit_field = request.form.get('edit_field')
+        # Update other fields as needed
+
+        # Add the new note to the case file
+        new_note_text = request.form.get('note')
+        if new_note_text:
+            new_note = CaseNote(note_text=new_note_text, case_file=case_file)
+            db.session.add(new_note)
+
+        db.session.commit()
+
+        flash('Changes saved successfully!', 'success')
+        return redirect(url_for('view_case_file', case_number=case_number))
+    else:
+        flash('Case file not found.', 'danger')
+        return redirect(url_for('view_case_files'))
+
+@app.route('/view_case_files', methods=['GET', 'POST'])
+@login_required
+def view_case_files():
+    if request.method == 'POST':
+        search_query = request.form.get('search_query', '')
+        case_files = []
+
+        if search_query:
+            # Perform a case-insensitive search based on case number or case name
+            case_files = CaseFile.query.filter(or_(
+                CaseFile.case_number.ilike(f"%{search_query}%"),
+                CaseFile.case_name.ilike(f"%{search_query}%")
+            )).all()
+
+        return render_template('view_case_files.html', case_files=case_files, search_query=search_query)
+
+    return render_template('view_case_files.html', case_files=[], search_query='')
+
         
 # Route for admin panel
 @app.route('/admin_panel')
@@ -492,4 +621,5 @@ if __name__ == '__main__':
         # Create tables if they do not exist
         db.create_all()
 
+    app.add_url_rule('/static/<filename>', 'uploaded_file', build_only=True)
     app.run(host='0.0.0.0', port=5000, debug=False)

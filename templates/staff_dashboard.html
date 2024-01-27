@@ -112,24 +112,24 @@
         <div id="menu-content">
             <a href="{{ url_for('create_profile') }}">Create Profile</a>
             <a href="{{ url_for('view_profiles') }}">View Profile</a>
+            <a href="{{ url_for('create_case_file') }}">Create Case File</a>
+            <a href="{{ url_for('view_case_files') }}">View Case Files</a>
             <!-- Add more menu items as needed -->
         </div>
     </div>
-
-    <!-- Page Content -->
+    
     <div id="page-content">
-
         <div id="centered-title">
             <h1>Staff Dashboard</h1>
         </div>
-
+    
         <!-- Stats Section -->
         <div>
             <h2>Statistics</h2>
             <p>Total Open Tickets: {{ total_open_tickets }}</p>
             <p>Total Closed Tickets: {{ total_closed_tickets }}</p>
         </div>
-
+    
         <!-- Ticket Categories Section -->
         {% for category, tickets in tickets_by_category.items() %}
         <h2>{{ category }} Tickets</h2>
@@ -141,7 +141,7 @@
                 <strong>Status:</strong> {{ ticket.status }}<br>
                 <p>User's Email: {{ ticket.user_email }}</p>
                 <a href="{{ url_for('staff_view_ticket', ticket_id=ticket.id) }}">View Details (Staff)</a>
-
+    
                 {% if ticket.status == 'Open' %}
                 <button class="close-button" onclick="closeTicket({{ ticket.id }})">Close Ticket</button>
                 {% endif %}
@@ -150,7 +150,7 @@
         </ul>
         {% endfor %}
     </div>
-
+    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.1.1/socket.io.js"></script>
     <script>
         var socket = io.connect('http://' + document.domain + ':' + location.port);

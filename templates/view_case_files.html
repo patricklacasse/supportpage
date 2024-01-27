@@ -1,0 +1,32 @@
+<!-- view_case_files.html -->
+{% extends 'base.html' %}
+
+{% block title %}View Case Files{% endblock %}
+
+{% block content %}
+  <h2>Case Files</h2>
+
+  <!-- Search Form -->
+  <form method="post" action="{{ url_for('view_case_files') }}">
+    <label for="search_query">Search by Case Number or Case Name:</label>
+    <input type="text" name="search_query" id="search_query" value="{{ search_query }}">
+    <button type="submit">Search</button>
+  </form>
+
+  {% if case_files %}
+    <ul>
+      {% for case_file in case_files %}
+        <li>
+          <p><strong>Case Number:</strong> {{ case_file.case_number }}</p>
+          <p><strong>Case Name:</strong> {{ case_file.case_name }}</p>
+          <p><strong>Date Opened:</strong> {{ case_file.date_opened }}</p>
+          <!-- Add more details as needed -->
+
+          <p><a href="{{ url_for('view_case_file', case_number=case_file.case_number) }}">View Details</a></p>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p>No case files found.</p>
+  {% endif %}
+{% endblock %}

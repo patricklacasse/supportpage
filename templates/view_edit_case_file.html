@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+
+{% block content %}
+  <h2>Case File: {{ case_file.case_number }}</h2>
+  
+  <!-- Display case file details -->
+
+  <h3>Notes</h3>
+  <ul>
+    {% for note in notes %}
+      <li>{{ note.note_text }}</li>
+    {% endfor %}
+  </ul>
+
+  <!-- Add note form -->
+  <form method="POST">
+    <label for="note">Add Note:</label>
+    <textarea name="note" rows="4" cols="50"></textarea>
+    <br>
+    <input type="submit" value="Add Note">
+  </form>
+{% endblock %}
