@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Submit a Ticket</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+            text-align: center;
+        }
+
+        h1 {
+            color: #333;
+        }
+
+        form {
+            background-color: #fff;
+            border: 1px solid #ddd;
+            margin: 20px auto;
+            padding: 20px;
+            width: 80%;
+            max-width: 600px;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        label {
+            display: block;
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        select,
+        textarea {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+
+        button {
+            background-color: #3498db;
+            color: #fff;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #2980b9;
+        }
+
+        p.back {
+            margin-top: 20px;
+        }
+
+        a.back {
+            color: #2ecc71;
+        }
+
+        a.back:hover {
+            color: #27ae60;
+        }
+
+        /* Guide styles */
+        div.guide {
+            text-align: left;
+            margin-top: 20px;
+        }
+
+        div.guide h2 {
+            color: #333;
+        }
+
+        div.guide p {
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Submit a Ticket</h1>
+    <form method="post" action="{{ url_for('submit_ticket') }}">
+        <label for="category">Category:</label>
+        <select name="category" required>
+            {% for category in categories %}
+                <option value="{{ category }}">{{ category }}</option>
+            {% endfor %}
+        </select><br>
+
+        <label for="description">Description:</label>
+        <textarea name="description" rows="4" required></textarea><br>
+
+        <!-- New field for user email -->
+        <label for="email">Your Email:</label>
+        <input type="email" name="email" required><br>
+
+        <!-- New field for chat message -->
+        <label for="chat_message">Additional Information:</label>
+        <textarea name="chat_message" rows="4" placeholder="Describe your problem or provide additional information"></textarea><br>
+
+        <!-- Guide for users -->
+        <div class="guide">
+            <h2>How to Build Your Ticket:</h2>
+            <p>
+                <strong>Category:</strong> Choose the category that best fits your issue from the dropdown list.
+            </p>
+            <p>
+                <strong>Description:</strong> Provide a detailed description of the problem or request. Include relevant information such as error messages, steps to reproduce, and any troubleshooting you've already attempted.
+            </p>
+            <p>
+                <strong>Your Email:</strong> Enter your email address so we can contact you regarding the ticket.
+            </p>
+            <p>
+                <strong>Additional Information:</strong> Use this field to add any extra details that may help us understand and resolve your issue more efficiently.
+            </p>
+        </div>
+
+        <button type="submit">Submit Ticket</button>
+    </form>
+    <p class="back"><a class="back" href="{{ url_for('menu') }}">Back to Menu</a></p>
+</body>
+
+</html>

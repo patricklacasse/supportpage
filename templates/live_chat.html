@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Chat</title>
+
+    <!-- Add CSS for closed messages -->
+    <style>
+        .closed-message {
+            color: #999;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <h1>Live Chat</h1>
+    <div id="chat-window">
+        <!-- Display chat messages here -->
+    </div>
+    <input type="text" id="message-input" placeholder="Type your message..." disabled>
+    <button id="send-button" onclick="sendMessage()" disabled>Send</button>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.1.1/socket.io.js"></script>
+    <script>
+        var socket = io.connect('http://' + document.domain + ':' + location.port);
+
+        // Add a listener for the 'ticket_closed' event
+        socket.on('ticket_closed', function(data) {
+            var chatWindow = document.getElementById('chat-window');
+            chatWindow.innerHTML += '<p class="closed-message">' + data.message + '</p>';
+
+            // Disable the input and send button for closed tickets
+            document.getElementById('message-input').disabled = true;
+            document.getElementById('send-button').disabled = true;
+        });
+
+        // Add a listener for existing chat history
+        socket.on('load_chat_history', function(data) {
+            var chatWindow = document.getElementById('chat-window');
+            chatWindow.innerHTML = data.chat_history;
+
+            // Enable the input and send button if the ticket is still open
+            if (data.ticket_status === 'Open') {
+                document.getElementById('message-input').disabled = false;
+                document.getElementById('send-button').disabled = false;
+            }
+        });
+
+        // Handle incoming messages
+        socket.on('receive_message', function(data) {
+            var chatWindow = document.getElementById('chat-window');
+            chatWindow.innerHTML += '<p>' + data.message + '</p>';
+        });
+
+        // Function to send a new message
+        function sendMessage() {
+            var messageInput = document.getElementById('message-input');
+            var message = messageInput.value;
+
+            // Emit the new message and request for chat history
+            socket.emit('send_message', {'ticket_id': YOUR_TICKET_ID, 'message': message});
+            socket.emit('request_chat_history', {'ticket_id': YOUR_TICKET_ID});
+
+            messageInput.value = '';
+        }
+    </script>
+</body>
+</html>

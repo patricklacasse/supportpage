@@ -1,0 +1,123 @@
+<!-- view_profiles.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>View Profiles</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8f9fa;
+            margin: 20px;
+            text-align: center;
+        }
+
+        h1 {
+            color: #343a40;
+        }
+
+        form {
+            max-width: 400px;
+            margin: 20px auto;
+            background-color: #ffffff;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #343a40;
+        }
+
+        input {
+            padding: 10px;
+            box-sizing: border-box;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+
+        button {
+            background-color: #007bff;
+            color: #ffffff;
+            padding: 12px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            width: 100%;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        ul {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        li {
+            background-color: #ffffff;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            text-align: left;
+        }
+
+        img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+
+        a {
+            display: inline-block;
+            margin-top: 20px;
+            color: #007bff;
+            text-decoration: none;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <h1>View Profiles</h1>
+
+    <form action="{{ url_for('view_profiles') }}" method="post">
+        <label for="search_query">Search:</label>
+        <input type="text" id="search_query" name="search_query" value="{{ search_query }}">
+        <button type="submit">Search</button>
+    </form>
+
+    {% if profiles %}
+        <ul>
+            {% for profile in profiles %}
+                <li>
+                    <img src="{{ url_for('static', filename=profile.photo) }}" alt="Profile Photo">
+                    <h2>{{ profile.name }} {{ profile.last_name }}</h2>
+                    <strong>Address:</strong> {{ profile.address }}<br>
+                    <strong>Phone Number:</strong> {{ profile.phone_number }}<br>
+                    <strong>Postal Code:</strong> {{ profile.postal_code }}<br>
+                    <strong>Last IP:</strong> {{ profile.last_ip }}<br>
+                    <strong>Country:</strong> {{ profile.country }}<br>
+                    <!-- Add other fields as needed -->
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>No profiles found.</p>
+    {% endif %}
+
+    <a href="{{ url_for('staff_dashboard') }}">Back to Staff Dashboard</a>
+</body>
+</html>

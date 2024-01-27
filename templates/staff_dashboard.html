@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Staff Dashboard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f5f5f5;
+            margin: 20px;
+        }
+
+        h1,
+        h2 {
+            color: #333;
+        }
+
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        li {
+            background-color: #fff;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        a {
+            color: #007bff;
+            text-decoration: none;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        p {
+            margin-top: 20px;
+        }
+
+        #side-menu {
+            position: fixed;
+            top: 0;
+            left: 0;
+            background-color: #333;
+            color: #fff;
+            width: 250px;
+            height: 100%;
+            overflow-x: hidden;
+            padding-top: 20px;
+        }
+
+        #menu-toggle {
+            font-size: 24px;
+            cursor: pointer;
+            padding: 10px;
+            position: absolute;
+            top: 10px;
+            left: 10px;
+        }
+
+        #menu-content {
+            display: none;
+            margin-top: 40px;
+        }
+
+        #menu-content a {
+            color: #fff;
+            text-decoration: none;
+            display: block;
+            padding: 10px;
+            margin-bottom: 5px;
+            transition: background-color 0.3s;
+        }
+
+        #menu-content a:hover {
+            background-color: #555;
+        }
+
+        #page-content {
+            margin-left: 250px;
+            padding: 20px;
+            background-color: #3498db;
+            z-index: 0;
+        }
+
+        #centered-title {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .close-button {
+            background-color: #dc3545;
+            color: #fff;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Side Menu -->
+    <div id="side-menu">
+        <div id="menu-toggle" onclick="toggleSideMenu()">☰</div>
+        <div id="menu-content">
+            <a href="{{ url_for('create_profile') }}">Create Profile</a>
+            <a href="{{ url_for('view_profiles') }}">View Profile</a>
+            <!-- Add more menu items as needed -->
+        </div>
+    </div>
+
+    <!-- Page Content -->
+    <div id="page-content">
+
+        <div id="centered-title">
+            <h1>Staff Dashboard</h1>
+        </div>
+
+        <!-- Stats Section -->
+        <div>
+            <h2>Statistics</h2>
+            <p>Total Open Tickets: {{ total_open_tickets }}</p>
+            <p>Total Closed Tickets: {{ total_closed_tickets }}</p>
+        </div>
+
+        <!-- Ticket Categories Section -->
+        {% for category, tickets in tickets_by_category.items() %}
+        <h2>{{ category }} Tickets</h2>
+        <ul>
+            {% for ticket in tickets %}
+            <li>
+                <strong>Category:</strong> {{ ticket.category }}<br>
+                <strong>Description:</strong> {{ ticket.description }}<br>
+                <strong>Status:</strong> {{ ticket.status }}<br>
+                <p>User's Email: {{ ticket.user_email }}</p>
+                <a href="{{ url_for('staff_view_ticket', ticket_id=ticket.id) }}">View Details (Staff)</a>
+
+                {% if ticket.status == 'Open' %}
+                <button class="close-button" onclick="closeTicket({{ ticket.id }})">Close Ticket</button>
+                {% endif %}
+            </li>
+            {% endfor %}
+        </ul>
+        {% endfor %}
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.1.1/socket.io.js"></script>
+    <script>
+        var socket = io.connect('http://' + document.domain + ':' + location.port);
+    
+        // Function to close the ticket and reload the page
+        function closeTicket(ticketId) {
+            // Emit the 'close_ticket' event to the server
+            socket.emit('close_ticket', {'ticket_id': ticketId});
+    
+            // Reload the page after emitting the event
+            location.reload();
+        }
+    
+        // Function to toggle the side menu visibility
+        function toggleSideMenu() {
+            var menuContent = document.getElementById('menu-content');
+            if (menuContent.style.display === 'none') {
+                menuContent.style.display = 'block';
+            } else {
+                menuContent.style.display = 'none';
+            }
+        }
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Menu</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+            text-align: center;
+        }
+
+        h1 {
+            color: #333;
+        }
+
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        li {
+            display: inline-block;
+            margin-right: 20px;
+        }
+
+        a {
+            text-decoration: none;
+            color: #3498db;
+            font-weight: bold;
+        }
+
+        a:hover {
+            color: #2980b9;
+        }
+
+        a.logout {
+            color: #e74c3c;
+        }
+
+        a.logout:hover {
+            color: #c0392b;
+        }
+    </style>
+</head>
+<body>
+    <h1>Welcome, {{ current_user.username }}!</h1>
+    <ul>
+        <li><a href="{{ url_for('view_tickets') }}">View My Tickets</a></li>
+        <li><a href="{{ url_for('submit_ticket') }}">Submit a Ticket</a></li>
+        <!--<a href="{{ url_for('live_chat') }}"><button>Live Chat</button></a>-->
+        {% if current_user.username == 'admin' %}
+            <li><a href="{{ url_for('admin_panel') }}">Admin Panel</a></li>
+        {% endif %}
+    </ul>
+    <a class="logout" href="{{ url_for('logout') }}">Logout</a>
+</body>
+</html>

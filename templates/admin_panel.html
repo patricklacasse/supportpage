@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+            text-align: center;
+        }
+
+        h1, h2 {
+            color: #333;
+        }
+
+        ul {
+            list-style: none;
+            padding: 0;
+            margin: 20px 0;
+        }
+
+        li {
+            background-color: #fff;
+            border: 1px solid #ddd;
+            margin: 10px;
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        a.delete {
+            color: #e74c3c;
+            text-decoration: none;
+        }
+
+        a.delete:hover {
+            color: #c0392b;
+        }
+
+        a.add {
+            color: #2ecc71;
+            text-decoration: none;
+        }
+
+        a.add:hover {
+            color: #27ae60;
+        }
+
+        p.back {
+            margin-top: 20px;
+        }
+
+        a.back {
+            color: #3498db;
+            text-decoration: none;
+        }
+
+        a.back:hover {
+            color: #2980b9;
+        }
+    </style>
+</head>
+<body>
+    <h1>Admin Panel</h1>
+    <h2>Staff Members</h2>
+    <ul>
+        {% for staff_member in staff_members %}
+            <li>
+                {{ staff_member.first_name }} {{ staff_member.last_name }} - {{ staff_member.username }}
+                (<a class="delete" href="{{ url_for('delete_staff', staff_id=staff_member.id) }}">Delete</a>)
+            </li>
+        {% endfor %}
+    </ul>
+    <p><a class="add" href="{{ url_for('add_staff') }}">Add New Staff Member</a></p>
+    <p class="back"><a class="back" href="{{ url_for('menu') }}">Back to Menu</a></p>
+</body>
+</html>

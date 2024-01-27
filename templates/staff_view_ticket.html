@@ -1,0 +1,159 @@
+<!-- Updated templates/staff_view_ticket.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Staff View Ticket</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f8f9fa;
+            margin: 20px;
+        }
+
+        h1 {
+            color: #343a40;
+        }
+
+        .ticket-details {
+            background-color: #ffffff;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+
+        #chat-history {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #ffffff;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .message-input-container {
+            margin-top: 20px;
+        }
+
+        #new-message-input {
+            width: 70%;
+            padding: 8px;
+            margin-right: 10px;
+            border: 1px solid #ced4da;
+            border-radius: 3px;
+        }
+
+        #upload-button {
+            padding: 8px 12px;
+            background-color: #28a745;
+            color: #ffffff;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+
+        #file-input {
+            display: none; /* Hide the file input visually */
+        }
+
+        .file-upload-label {
+            padding: 8px 12px;
+            background-color: #007bff;
+            color: #ffffff;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+
+        a {
+            color: #007bff;
+            text-decoration: none;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        .back-link {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Staff View Ticket</h1>
+
+        <div class="ticket-details">
+            <strong>Category:</strong> {{ ticket.category }}<br>
+            <strong>Description:</strong> {{ ticket.description }}<br>
+            <strong>Status:</strong> {{ ticket.status }}<br>
+        </div>
+
+        <div class="ticket-details" id="chat-history">
+            {{ ticket.chat_messages | safe }}
+        </div>
+
+        <div class="message-input-container">
+            <input type="text" id="new-message-input" placeholder="Type your message...">
+            <button id="upload-button" onclick="uploadFile()">Upload File</button>
+            <input type="file" id="file-input" onchange="updateFileLabel()">
+            <label for="file-input" class="file-upload-label">Choose File</label>
+        </div>
+
+        <p class="back-link"><a href="{{ url_for('staff_dashboard') }}">Back to Staff Dashboard</a></p>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.1.1/socket.io.js"></script>
+    <script>
+        var socket = io.connect('http://' + document.domain + ':' + location.port);
+
+        // Function to send a new message from staff
+        function sendStaffMessage() {
+            var newMessageInput = document.getElementById('new-message-input');
+            var newMessage = newMessageInput.value;
+
+            // Emit the new message to the server
+            socket.emit('send_message', {'ticket_id': {{ ticket.id }}, 'message': newMessage});
+
+            // Clear the input field after sending
+            newMessageInput.value = '';
+        }
+
+        // Function to upload a file
+        function uploadFile() {
+            var fileInput = document.getElementById('file-input');
+            var file = fileInput.files[0];
+
+            if (file) {
+                var reader = new FileReader();
+                reader.onload = function (e) {
+                    var fileContent = e.target.result;
+
+                    // Emit the file content to the server
+                    socket.emit('send_file', {'ticket_id': {{ ticket.id }}, 'file_content': fileContent, 'file_name': file.name});
+                };
+
+                // Read the file as data URL
+                reader.readAsDataURL(file);
+            }
+        }
+
+        // Function to update the file label with the selected file name
+        function updateFileLabel() {
+            var fileInput = document.getElementById('file-input');
+            var fileLabel = document.querySelector('.file-upload-label');
+
+            if (fileInput.files.length > 0) {
+                fileLabel.innerText = fileInput.files[0].name;
+            } else {
+                fileLabel.innerText = 'Choose File';
+            }
+        }
+    </script>
+</body>
+</html>

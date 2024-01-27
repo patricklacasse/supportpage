@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Tickets</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+            text-align: center;
+        }
+
+        h1 {
+            color: #333;
+        }
+
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        li {
+            background-color: #fff;
+            border: 1px solid #ddd;
+            margin: 10px;
+            padding: 15px;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        a {
+            text-decoration: none;
+            color: #3498db;
+            font-weight: bold;
+        }
+
+        a:hover {
+            color: #2980b9;
+        }
+
+        p.back {
+            margin-top: 20px;
+        }
+
+        a.back {
+            color: #2ecc71;
+        }
+
+        a.back:hover {
+            color: #27ae60;
+        }
+    </style>
+</head>
+<body>
+    <h1>My Tickets</h1>
+    <ul>
+        {% for ticket in user_tickets %}
+            <li><a href="{{ url_for('view_ticket', ticket_id=ticket.id) }}">{{ ticket.category }} - {{ ticket.description }}</a></li>
+        {% endfor %}
+    </ul>
+    <p class="back"><a class="back" href="{{ url_for('menu') }}">Back to Menu</a></p>
+</body>
+</html>
