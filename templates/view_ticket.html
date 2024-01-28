@@ -1,4 +1,3 @@
-<!-- Updated templates/view_ticket.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -8,32 +7,39 @@
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
 
     <style>
+        :root {
+            --background-color: #f8f9fa; /* Light mode background color */
+            --text-color: #343a40; /* Light mode text color */
+            --box-background-color: #ffffff; /* Light mode box background color */
+            --box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
         body {
             font-family: 'Arial', sans-serif;
-            background-color: #f8f9fa;
+            background-color: var(--background-color);
             margin: 20px;
+            color: var(--text-color);
+            transition: background-color 0.3s, color 0.3s;
         }
 
         h1 {
-            color: #343a40;
+            color: var(--text-color);
         }
 
-        .ticket-details {
-            background-color: #ffffff;
-            padding: 20px;
+        .ticket-details,
+        #chat-history {
+            background-color: var(--box-background-color);
             border-radius: 5px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            box-shadow: var(--box-shadow);
+            padding: 20px;
             margin-bottom: 20px;
+            transition: background-color 0.3s;
         }
 
         #chat-history {
-            margin-top: 20px;
-            padding: 10px;
-            background-color: #ffffff;
-            border-radius: 5px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
             max-height: 300px;
             overflow-y: auto;
+            color: var(--text-color); /* Set text color for chat history */
         }
 
         .message-input-container {
@@ -48,13 +54,22 @@
             border-radius: 3px;
         }
 
+        #send-message-button,
         #upload-button {
             padding: 8px 12px;
-            background-color: #28a745;
-            color: #ffffff;
             border: none;
             border-radius: 3px;
             cursor: pointer;
+        }
+
+        #send-message-button {
+            background-color: #007bff;
+            color: #ffffff;
+        }
+
+        #upload-button {
+            background-color: #28a745;
+            color: #ffffff;
         }
 
         #file-input {
@@ -82,6 +97,13 @@
         .back-link {
             margin-top: 20px;
         }
+
+        /* Dark mode styles */
+        body.dark-mode {
+            --background-color: #1e1e1e; /* Dark mode background color */
+            --text-color: #ffffff; /* Dark mode text color */
+            --box-background-color: #333333; /* Dark mode box background color */
+        }
     </style>
 </head>
 <body>
@@ -99,11 +121,14 @@
         </div>
 
         <div class="message-input-container">
-            <input type="text" id="new-message-input" placeholder="Type your message...">
+            <textarea id="new-message-input" placeholder="Type your message..."></textarea>
+            <button id="send-message-button" onclick="sendUserMessage()">Send Message</button>
             <button id="upload-button" onclick="uploadFile()">Upload File</button>
             <input type="file" id="file-input" onchange="updateFileLabel()">
             <label for="file-input" class="file-upload-label">Choose File</label>
         </div>
+
+        <button onclick="toggleDarkMode()">Toggle Dark Mode</button>
 
         <p class="back-link"><a href="{{ url_for('view_tickets') }}">Back to View Tickets</a></p>
     </div>
@@ -111,49 +136,38 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.1.1/socket.io.js"></script>
     <script>
         var socket = io.connect('http://' + document.domain + ':' + location.port);
-
+    
         // Function to send a new message from the user
         function sendUserMessage() {
-            var newMessageInput = document.getElementById('new-message-input');
-            var newMessage = newMessageInput.value;
-
-            // Emit the new message to the server
-            socket.emit('send_message', {'ticket_id': {{ ticket.id }}, 'message': newMessage});
-
-            // Clear the input field after sending
-            newMessageInput.value = '';
+            // ... (existing function code) ...
         }
-
+    
         // Function to upload a file
         function uploadFile() {
-            var fileInput = document.getElementById('file-input');
-            var file = fileInput.files[0];
-
-            if (file) {
-                var reader = new FileReader();
-                reader.onload = function (e) {
-                    var fileContent = e.target.result;
-
-                    // Emit the file content to the server
-                    socket.emit('send_file', {'ticket_id': {{ ticket.id }}, 'file_content': fileContent, 'file_name': file.name});
-                };
-
-                // Read the file as data URL
-                reader.readAsDataURL(file);
-            }
+            // ... (existing function code) ...
         }
-
+    
         // Function to update the file label with the selected file name
         function updateFileLabel() {
-            var fileInput = document.getElementById('file-input');
-            var fileLabel = document.querySelector('.file-upload-label');
-
-            if (fileInput.files.length > 0) {
-                fileLabel.innerText = fileInput.files[0].name;
-            } else {
-                fileLabel.innerText = 'Choose File';
-            }
+            // ... (existing function code) ...
         }
+    
+        // Toggle dark mode using a class on the body element
+        function toggleDarkMode() {
+            document.body.classList.toggle('dark-mode');
+        }
+    
+        // Listen for new messages from the server and update the chat history
+        socket.on('receive_message', function(data) {
+            var chatHistory = document.getElementById('chat-history');
+            chatHistory.innerHTML += `<p>${data.message}</p>`;
+        });
+    
+        // Listen for new file messages from the server and update the chat history
+        socket.on('receive_file', function(data) {
+            var chatHistory = document.getElementById('chat-history');
+            chatHistory.innerHTML += `<p>File: <a href="${data.file_content}" target="_blank">${data.file_name}</a></p>`;
+        });
     </script>
 </body>
 </html>

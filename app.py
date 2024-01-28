@@ -1,7 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, flash
 from functools import wraps
 from flask_sqlalchemy import SQLAlchemy
-from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
+from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user, user_logged_in, user_logged_out
 from flask_bcrypt import Bcrypt
 from flask_bcrypt import check_password_hash
 from flask_socketio import SocketIO, emit
@@ -19,6 +19,9 @@ from datetime import datetime
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileField, FileAllowed
 from wtforms import TextAreaField, SubmitField
+from flask_session import Session
+from datetime import timedelta
+from flask import session
 
 
 
@@ -30,6 +33,8 @@ app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'default_secret_key')
 # Create the SQLAlchemy instance and bind it to the app
 app.config['UPLOAD_FOLDER'] = 'static'
 app.static_folder = 'static'
+app.config['SESSION_TYPE'] = 'filesystem'  # You can use other session types based on your requirements
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=5)
 db = SQLAlchemy(app)
 bcrypt = Bcrypt(app)  # Initialize Flask-Bcrypt
 login_manager = LoginManager(app)
@@ -104,6 +109,23 @@ def staff_login_required(f):
             return redirect(url_for('staff_login'))
         return f(*args, **kwargs)
     return decorated_function
+
+@app.before_request
+def before_request():
+    if current_user.is_authenticated:
+        session.permanent = True
+        app.permanent_session_lifetime = timedelta(minutes=5)
+    else:
+        session.permanent = False
+        app.permanent_session_lifetime = timedelta(days=1)
+
+@user_logged_in.connect_via(app)
+def on_user_logged_in(sender, user):
+    session['user_id'] = user.get_id()
+
+@user_logged_out.connect_via(app)
+def on_user_logged_out(sender, user):
+    session.pop('user_id', None)
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -527,10 +549,22 @@ def view_ticket(ticket_id):
 
     if request.method == 'POST':
         new_message = request.form.get('new_message')
+        uploaded_file = request.files['file']
+
         if new_message:
             # Append the new message to existing chat_messages
             ticket.chat_messages = f"{ticket.chat_messages}\n<p>{new_message}</p>"
-            db.session.commit()
+
+        if uploaded_file:
+            # Handle file upload
+            filename = secure_filename(uploaded_file.filename)
+            uploaded_file.save(os.path.join('your_upload_folder', filename))
+
+            # Add a message about the uploaded file to chat_messages
+            file_message = f"<p>Uploaded file: <a href='{url_for('static', filename=filename)}'>{filename}</a></p>"
+            ticket.chat_messages = f"{ticket.chat_messages}\n{file_message}"
+
+        db.session.commit()
 
     return render_template('view_ticket.html', ticket=ticket)
 
