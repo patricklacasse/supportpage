@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
 from functools import wraps
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user, user_logged_in, user_logged_out
@@ -22,8 +22,11 @@ from wtforms import TextAreaField, SubmitField
 from flask_session import Session
 from datetime import timedelta
 from flask import session
-
-
+from io import StringIO
+from io import BytesIO
+import networkx as nx
+from xml.etree import ElementTree as ET
+import subprocess
 
 app = Flask(__name__)
 load_dotenv()
@@ -81,6 +84,11 @@ class Profile(db.Model):
     country = db.Column(db.String(50))
     photo = db.Column(db.String(255))
 
+class NmapScanResult(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    target = db.Column(db.String(50), nullable=False)
+    result = db.Column(db.Text, nullable=False)
+
 class Ticket(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     category = db.Column(db.String(50), nullable=False)
@@ -137,6 +145,78 @@ def load_user(user_id):
     # Then try loading as User
     user = User.query.get(int(user_id))
     return user
+
+@app.route('/perform_nmap_scan', methods=['POST'])
+def perform_nmap_scan():
+    target = request.form.get('target')
+
+    # Define the Nmap command
+    nmap_command = ['nmap', '-sP', target]  # Example: Ping scan (-sP)
+
+    try:
+        # Run the Nmap command and capture the output
+        nmap_result_bytes = subprocess.check_output(nmap_command, stderr=subprocess.STDOUT)
+        nmap_result = nmap_result_bytes.decode('utf-8')
+        
+        # Save the Nmap scan result in the database
+        scan_result = NmapScanResult(target=target, result=nmap_result)
+        db.session.add(scan_result)
+        db.session.commit()
+
+        # Return the Nmap scan result
+        return jsonify({'result': nmap_result})
+    except subprocess.CalledProcessError as e:
+        # Handle Nmap command execution error
+        error_message = f"Error running Nmap command: {e.output.decode('utf-8')}"
+        return jsonify({'error': error_message})
+
+def process_nmap_results_from_string(xml_string):
+    G = nx.Graph()
+
+    # Parse the XML string
+    root = ET.fromstring(xml_string)
+
+    router_ip = None
+
+    for host_elem in root.findall(".//host/status[@state='up']/.."):
+        ip_elem = host_elem.find(".//address[@addrtype='ipv4']")
+        if ip_elem is not None:
+            ip_address = ip_elem.get("addr")
+            G.add_node(ip_address)
+
+            os_elem = host_elem.find(".//os/osmatch")
+            if os_elem is not None and "router" in os_elem.get("name", "").lower():
+                router_ip = ip_address
+
+    if router_ip:
+        for host_elem in root.findall(".//host/status[@state='up']/.."):
+            ip_elem = host_elem.find(".//address[@addrtype='ipv4']")
+            if ip_elem is not None:
+                ip_address = ip_elem.get("addr")
+                if ip_address != router_ip:
+                    G.add_edge(router_ip, ip_address)
+
+    return G
+
+@app.route('/view_network_graph', methods=['GET', 'POST'])
+def view_network_graph():
+    if request.method == 'POST':
+        nmap_results = request.form.get('nmap_results')
+        try:
+            graph = process_nmap_results_from_string(nmap_results)
+            # Serialize the graph to a simplified JSON-friendly format
+            graph_data = {
+                'nodes': [{'id': node} for node in graph.nodes],
+                'links': [{'source': edge[0], 'target': edge[1]} for edge in graph.edges],
+            }
+            return render_template('view_network_graph.html', network_graph=graph_data)
+        except Exception as e:
+            error_message = f"Error processing Nmap results: {str(e)}"
+            return render_template('view_network_graph.html', error_message=error_message)
+
+    return render_template('view_network_graph.html', network_graph=None, error_message=None)
+
+
 
 @app.route('/add_message/<int:ticket_id>', methods=['POST'])
 @login_required  # Add this decorator if users need to be logged in
@@ -236,7 +316,24 @@ def create_case_file():
     if request.method == 'POST':
         case_number = request.form.get('case_number')
         case_name = request.form.get('case_name')
-        date_opened = datetime.strptime(request.form.get('date_opened'), '%Y-%m-%d').date()
+        date_opened_str = request.form.get('date_opened')
+
+        # Perform some basic form validation
+        if not case_number or not case_name or not date_opened_str:
+            flash('Please fill in all the fields.', 'error')
+            return redirect(url_for('create_case_file'))
+
+        try:
+            date_opened = datetime.strptime(date_opened_str, '%Y-%m-%d').date()
+        except ValueError:
+            flash('Invalid date format. Please use YYYY-MM-DD.', 'error')
+            return redirect(url_for('create_case_file'))
+
+        # Check if the case number is unique before creating the CaseFile
+        existing_case = CaseFile.query.filter_by(case_number=case_number).first()
+        if existing_case:
+            flash('Case number must be unique.', 'error')
+            return redirect(url_for('create_case_file'))
 
         # Create a new case file with the provided information
         new_case_file = CaseFile(case_number=case_number, case_name=case_name, date_opened=date_opened)

@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>View Network Graph</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f5f5f5;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        #network-graph-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        circle {
+            fill: #3498db;
+            stroke: #2980b9;
+            stroke-width: 2px;
+        }
+
+        line {
+            stroke: #7f8c8d;
+            stroke-width: 1px;
+        }
+
+        text {
+            font-size: 12px;
+            fill: #2c3e50;
+            text-anchor: middle;
+            dominant-baseline: central;
+        }
+
+        form {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 1;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        textarea {
+            width: 100%;
+            height: 100px;
+            resize: none;
+            margin-bottom: 10px;
+        }
+
+        input[type="submit"] {
+            background-color: #3498db;
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+
+        #side-menu {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: none;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            z-index: 1;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #3498db;
+        }
+
+        p {
+            color: red;
+        }
+    </style>
+    <script src="https://d3js.org/d3.v5.min.js"></script>
+</head>
+
+<body>
+    <h1>View Network Graph</h1>
+
+    {% if error_message %}
+    <p style="color: red;">{{ error_message }}</p>
+    {% endif %}
+
+    {% if network_graph %}
+    <div id="network-graph-container"></div>
+    <div id="side-menu">
+        <h2>Nmap Scan Results</h2>
+        <pre id="nmap-results-display"></pre>
+    </div>
+    <script>
+        var graphData = {{ network_graph|tojson|safe }};
+        var svg = d3.select("#network-graph-container").append("svg").attr("width", 800).attr("height", 600);
+
+        // Define the force simulation
+        var simulation = d3.forceSimulation()
+            .force("link", d3.forceLink().id(function (d) { return d.id; }))
+            .force("charge", d3.forceManyBody())
+            .force("center", d3.forceCenter(svg.attr("width") / 2, svg.attr("height") / 2));
+
+        // Add links and nodes to the simulation
+        var link = svg.append("g").selectAll("line").data(graphData.links).enter().append("line");
+        var node = svg.append("g").selectAll("circle").data(graphData.nodes).enter().append("circle").attr("r", 10);
+        var label = svg.append("g").selectAll("text").data(graphData.nodes).enter().append("text").text(d => d.id).attr("dy", -15);
+
+        // Set the behavior of the simulation
+        simulation.nodes(graphData.nodes).on("tick", ticked);
+        simulation.force("link").links(graphData.links);
+
+        // Add click event handler to nodes
+        node.on("click", function (d) {
+            performNmapScan(d.id);
+        });
+
+        function ticked() {
+            link.attr("x1", function (d) { return d.source.x; })
+                .attr("y1", function (d) { return d.source.y; })
+                .attr("x2", function (d) { return d.target.x; })
+                .attr("y2", function (d) { return d.target.y; });
+
+            node.attr("cx", function (d) { return d.x; })
+                .attr("cy", function (d) { return d.y; });
+
+            label.attr("x", function (d) { return d.x; })
+                .attr("y", function (d) { return d.y; });
+        }
+
+        function performNmapScan(target) {
+            // AJAX request to Flask route for Nmap scan
+            fetch('/perform_nmap_scan', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams({
+                    'target': target,
+                }),
+            })
+                .then(response => response.json())
+                .then(data => {
+                    // Display the side menu and show the Nmap scan result
+                    var sideMenu = document.getElementById("side-menu");
+                    var nmapResultsDisplay = document.getElementById("nmap-results-display");
+                    nmapResultsDisplay.textContent = data.result;
+                    sideMenu.style.display = "block";
+                })
+                .catch(error => {
+                    console.error('Error performing Nmap scan:', error);
+                });
+        }
+    </script>
+    {% else %}
+    <form method="post" action="{{ url_for('view_network_graph') }}">
+        <label for="nmap_results">Paste Nmap XML results:</label><br>
+        <textarea id="nmap_results" name="nmap_results" rows="10" cols="80"></textarea><br>
+        <input type="submit" value="Generate Network Graph">
+    </form>
+    {% endif %}
+</body>
+
+</html>
