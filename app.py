@@ -108,7 +108,7 @@ def staff_login_required(f):
 @login_manager.user_loader
 def load_user(user_id):
     # Try loading as Staff first
-    staff = Staff.query.get(int(user_id))
+    staff = db.session.query(Staff).get(int(user_id))
     if staff:
         return staff
     
@@ -359,12 +359,16 @@ def add_staff():
 def close_ticket(ticket_id):
     ticket = Ticket.query.get_or_404(ticket_id)
 
+    print(f"Before closing - Ticket {ticket.id} status: {ticket.status}")
+
     # Update the ticket status to 'Closed'
     ticket.status = 'Closed'
     db.session.commit()
 
+    print(f"After closing - Ticket {ticket.id} status: {ticket.status}")
+
     # Emit a socket event to notify the client
-    socketio.emit('ticket_closed', {'message': 'This ticket has been closed.'}, room=str(ticket.user_id))
+    socketio.emit('ticket_closed', {'ticket_id': ticket.id}, room=str(ticket.user_id))
 
     return redirect(url_for('staff_dashboard'))
 
@@ -457,14 +461,15 @@ def handle_file(data):
 @socketio.on('close_ticket')
 def close_ticket(data):
     ticket_id = data['ticket_id']
-    ticket = Ticket.query.get_or_404(ticket_id)
+    print(f"Received close_ticket event for ticket ID: {ticket_id}")
 
-    # Update the ticket status to 'Closed'
+    # Assume you have code here to update the ticket status to 'Closed'
+    ticket = Ticket.query.get_or_404(ticket_id)
     ticket.status = 'Closed'
     db.session.commit()
 
-    # Notify the user that the ticket is closed
-    emit('ticket_closed', {'message': 'This ticket has been closed.'}, room=str(ticket.user_id))
+    # Emit a 'ticket_closed' event to notify the client
+    emit('ticket_closed', {'ticket_id': ticket_id}, broadcast=True)
 
 @socketio.on('request_chat_history')
 def send_chat_history(data):
@@ -600,12 +605,12 @@ def submit_ticket():
         category = request.form.get('category')
         description = request.form.get('description')
         chat_message = request.form.get('chat_message')
-        user_email = request.form.get('user_email')  # Add this line
+        user_email = request.form.get('email')  # Corrected line
 
         # Create a new ticket with the provided information
         new_ticket = Ticket(category=category, description=description, 
                             user_id=current_user.id, chat_messages=chat_message, 
-                            user_email=user_email)  # Add this line
+                            user_email=user_email)  # Corrected line
         db.session.add(new_ticket)
         db.session.commit()
 
@@ -622,4 +627,4 @@ if __name__ == '__main__':
         db.create_all()
 
     app.add_url_rule('/static/<filename>', 'uploaded_file', build_only=True)
-    app.run(host='0.0.0.0', port=5000, debug=False)
+    socketio.run(app, host='0.0.0.0', port=5000, debug=False)

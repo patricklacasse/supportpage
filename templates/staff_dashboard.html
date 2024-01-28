@@ -130,50 +130,54 @@
             <p>Total Closed Tickets: {{ total_closed_tickets }}</p>
         </div>
     
-        <!-- Ticket Categories Section -->
-        {% for category, tickets in tickets_by_category.items() %}
-        <h2>{{ category }} Tickets</h2>
-        <ul>
-            {% for ticket in tickets %}
-            <li>
-                <strong>Category:</strong> {{ ticket.category }}<br>
-                <strong>Description:</strong> {{ ticket.description }}<br>
-                <strong>Status:</strong> {{ ticket.status }}<br>
-                <p>User's Email: {{ ticket.user_email }}</p>
-                <a href="{{ url_for('staff_view_ticket', ticket_id=ticket.id) }}">View Details (Staff)</a>
-    
-                {% if ticket.status == 'Open' %}
-                <button class="close-button" onclick="closeTicket({{ ticket.id }})">Close Ticket</button>
-                {% endif %}
-            </li>
-            {% endfor %}
-        </ul>
-        {% endfor %}
-    </div>
-    
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.1.1/socket.io.js"></script>
-    <script>
-        var socket = io.connect('http://' + document.domain + ':' + location.port);
-    
-        // Function to close the ticket and reload the page
-        function closeTicket(ticketId) {
-            // Emit the 'close_ticket' event to the server
-            socket.emit('close_ticket', {'ticket_id': ticketId});
-    
-            // Reload the page after emitting the event
-            location.reload();
-        }
-    
-        // Function to toggle the side menu visibility
-        function toggleSideMenu() {
-            var menuContent = document.getElementById('menu-content');
-            if (menuContent.style.display === 'none') {
-                menuContent.style.display = 'block';
-            } else {
-                menuContent.style.display = 'none';
-            }
-        }
-    </script>
-</body>
+ <!-- Ticket Categories Section -->
+{% for category, tickets in tickets_by_category.items() %}
+<h2>{{ category }} Tickets</h2>
+<ul>
+    {% for ticket in tickets %}
+    <li id="ticket-{{ ticket.id }}">
+        <strong>Category:</strong> {{ ticket.category }}<br>
+        <strong>Description:</strong> {{ ticket.description }}<br>
+        <strong>Status:</strong> {{ ticket.status }}<br>
+        <p>User's Email: {{ ticket.user_email }}</p>
+        <a href="{{ url_for('staff_view_ticket', ticket_id=ticket.id) }}">View Details (Staff)</a>
 
-</html>
+        {% if ticket.status == 'Open' %}
+        <button class="close-button" onclick="closeTicket({{ ticket.id }})">Close Ticket</button>
+        {% endif %}
+    </li>
+    {% endfor %}
+</ul>
+{% endfor %}
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.1.1/socket.io.js"></script>
+<script>
+    var socket = io.connect('http://' + document.domain + ':' + location.port);
+
+    // Function to close the ticket and reload the page
+    function closeTicket(ticketId) {
+        console.log(`Attempting to close ticket ${ticketId}`);
+        
+        // Emit the 'close_ticket' event to the server
+        socket.emit('close_ticket', {'ticket_id': ticketId});
+        
+        // Reload the page after emitting the event
+        location.reload();
+    }
+
+    // Add an event listener for a confirmation from the server
+    socket.on('ticket_closed', function(data) {
+        console.log(`Received ticket_closed confirmation for ticket ${data.ticket_id}`);
+        // Note: The page will already be reloaded when closeTicket is called
+    });
+
+    // Function to toggle the side menu visibility
+    function toggleSideMenu() {
+        var menuContent = document.getElementById('menu-content');
+        if (menuContent.style.display === 'none') {
+            menuContent.style.display = 'block';
+        } else {
+            menuContent.style.display = 'none';
+        }
+    }
+</script>
