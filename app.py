@@ -27,6 +27,7 @@ from io import BytesIO
 import networkx as nx
 from xml.etree import ElementTree as ET
 import subprocess
+from sqlalchemy.orm.exc import NoResultFound
 
 app = Flask(__name__)
 load_dotenv()
@@ -44,6 +45,18 @@ login_manager = LoginManager(app)
 login_manager.login_view = 'login'
 socketio = SocketIO(app)
 
+
+
+class VisitorProfile(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    ip_address = db.Column(db.String(15), nullable=False)
+    user_agent = db.Column(db.String(255), nullable=True)
+    cookies = db.Column(db.Text, nullable=True)
+    device_info = db.Column(db.String(255), nullable=True)
+    plugins_extensions = db.Column(db.String(255), nullable=True)
+    language_settings = db.Column(db.String(255), nullable=True)
+    referrer = db.Column(db.String(255), nullable=True)
+    canvas_fingerprint = db.Column(db.String(255), nullable=True)
 
 class CaseFile(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -104,6 +117,44 @@ class AddNoteForm(FlaskForm):
     file = FileField('Attachment', validators=[FileAllowed(['pdf', 'png', 'jpg', 'jpeg', 'gif'])])
     submit = SubmitField('Add Note')
 
+@app.before_request
+def before_request():
+    # Check if the user has an existing session
+    user_id = session.get('user_id')
+
+    if user_id:
+        try:
+            # Load user information from the database
+            existing_user = db.session.get(VisitorProfile, user_id)
+        except NoResultFound:
+            existing_user = None
+    else:
+        # Get the real IP address from CF-Connecting-IP header
+        real_ip = request.headers.get('CF-Connecting-IP')
+
+        # Create a VisitorProfile record for each request
+        visitor_profile = VisitorProfile(
+            ip_address=real_ip,
+            user_agent=request.user_agent.string,
+            cookies=str(request.cookies),
+            device_info=request.headers.get('User-Agent'),
+            plugins_extensions=request.headers.get('Sec-CH-UA-Extensions'),
+            language_settings=request.headers.get('Accept-Language'),
+            referrer=request.headers.get('Referer'),
+            canvas_fingerprint=request.headers.get('Sec-CH-2')
+        )
+
+        try:
+            db.session.add(visitor_profile)
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error storing visitor profile: {str(e)}")
+
+        # Set the user_id in the session for subsequent requests
+        session['user_id'] = visitor_profile.id
+
+
 def get_profile_by_id(profile_id):
     return Profile.query.get(profile_id)
 
@@ -151,7 +202,7 @@ def perform_nmap_scan():
     target = request.form.get('target')
 
     # Define the Nmap command
-    nmap_command = ['nmap', '-sP', target]  # Example: Ping scan (-sP)
+    nmap_command = ['nmap', '-O', '-traceroute', target]  # Example: Ping scan (-sP)
 
     try:
         # Run the Nmap command and capture the output
