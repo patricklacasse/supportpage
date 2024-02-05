@@ -34,13 +34,13 @@ load_dotenv()
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///site.db'
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'default_secret_key')
 
-# Create the SQLAlchemy instance and bind it to the app
+
 app.config['UPLOAD_FOLDER'] = 'static'
 app.static_folder = 'static'
-app.config['SESSION_TYPE'] = 'filesystem'  # You can use other session types based on your requirements
+app.config['SESSION_TYPE'] = 'filesystem'  
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=5)
 db = SQLAlchemy(app)
-bcrypt = Bcrypt(app)  # Initialize Flask-Bcrypt
+bcrypt = Bcrypt(app) 
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
 socketio = SocketIO(app)
@@ -119,20 +119,20 @@ class AddNoteForm(FlaskForm):
 
 @app.before_request
 def before_request():
-    # Check if the user has an existing session
+    
     user_id = session.get('user_id')
 
     if user_id:
         try:
-            # Load user information from the database
+            
             existing_user = db.session.get(VisitorProfile, user_id)
         except NoResultFound:
             existing_user = None
     else:
-        # Get the real IP address from CF-Connecting-IP header
+        
         real_ip = request.headers.get('CF-Connecting-IP')
 
-        # Create a VisitorProfile record for each request
+        
         visitor_profile = VisitorProfile(
             ip_address=real_ip,
             user_agent=request.user_agent.string,
@@ -151,7 +151,7 @@ def before_request():
             db.session.rollback()
             print(f"Error storing visitor profile: {str(e)}")
 
-        # Set the user_id in the session for subsequent requests
+       
         session['user_id'] = visitor_profile.id
 
 
@@ -188,12 +188,12 @@ def on_user_logged_out(sender, user):
 
 @login_manager.user_loader
 def load_user(user_id):
-    # Try loading as Staff first
+    
     staff = db.session.query(Staff).get(int(user_id))
     if staff:
         return staff
     
-    # Then try loading as User
+    
     user = User.query.get(int(user_id))
     return user
 
@@ -201,30 +201,30 @@ def load_user(user_id):
 def perform_nmap_scan():
     target = request.form.get('target')
 
-    # Define the Nmap command
+    
     nmap_command = ['nmap', '-O', '-traceroute', target]  # Example: Ping scan (-sP)
 
     try:
-        # Run the Nmap command and capture the output
+        
         nmap_result_bytes = subprocess.check_output(nmap_command, stderr=subprocess.STDOUT)
         nmap_result = nmap_result_bytes.decode('utf-8')
         
-        # Save the Nmap scan result in the database
+        
         scan_result = NmapScanResult(target=target, result=nmap_result)
         db.session.add(scan_result)
         db.session.commit()
 
-        # Return the Nmap scan result
+        
         return jsonify({'result': nmap_result})
     except subprocess.CalledProcessError as e:
-        # Handle Nmap command execution error
+       
         error_message = f"Error running Nmap command: {e.output.decode('utf-8')}"
         return jsonify({'error': error_message})
 
 def process_nmap_results_from_string(xml_string):
     G = nx.Graph()
 
-    # Parse the XML string
+    
     root = ET.fromstring(xml_string)
 
     router_ip = None
@@ -255,7 +255,7 @@ def view_network_graph():
         nmap_results = request.form.get('nmap_results')
         try:
             graph = process_nmap_results_from_string(nmap_results)
-            # Serialize the graph to a simplified JSON-friendly format
+            
             graph_data = {
                 'nodes': [{'id': node} for node in graph.nodes],
                 'links': [{'source': edge[0], 'target': edge[1]} for edge in graph.edges],
@@ -270,20 +270,20 @@ def view_network_graph():
 
 
 @app.route('/add_message/<int:ticket_id>', methods=['POST'])
-@login_required  # Add this decorator if users need to be logged in
+@login_required  
 def add_message(ticket_id):
     ticket = Ticket.query.get_or_404(ticket_id)
 
     if request.method == 'POST':
         new_message = request.form.get('new_message')
         if new_message:
-            # Append the new message to existing chat_messages  
+              
             ticket.chat_messages = f"{ticket.chat_messages}\n<p>{new_message}</p>"
             db.session.commit()
 
     return redirect(url_for('view_ticket', ticket_id=ticket.id))
 
-# Add a new route for staff to view tickets
+
 @app.route('/staff/view_ticket/<int:ticket_id>', methods=['GET', 'POST'])
 @login_required
 def staff_view_ticket(ticket_id):
@@ -292,7 +292,7 @@ def staff_view_ticket(ticket_id):
     if request.method == 'POST':
         new_message = request.form.get('new_message')
         if new_message:
-            # Append the new message to existing chat_messages
+            
             ticket.chat_messages = f"{ticket.chat_messages}\n<p>{new_message}</p>"
             db.session.commit()
 
@@ -312,7 +312,7 @@ def create_profile():
         last_ip = request.form.get('last_ip')
         country = request.form.get('country')
 
-        # Handle file upload
+        
         if 'photo' in request.files:
             photo = request.files['photo']
             if photo.filename != '':
@@ -341,7 +341,7 @@ def create_profile():
 
     return render_template('create_profile.html')
 
-# Route for viewing profiles
+
 @app.route('/view_profiles', methods=['GET', 'POST'])
 @login_required
 def view_profiles():
@@ -350,7 +350,7 @@ def view_profiles():
         profiles = []
 
         if search_query:
-            # Perform a case-insensitive search based on name, last name, or profile ID
+           
             profiles = Profile.query.filter(or_(
                 Profile.name.ilike(f"%{search_query}%"),
                 Profile.last_name.ilike(f"%{search_query}%"),
@@ -380,13 +380,13 @@ def create_case_file():
             flash('Invalid date format. Please use YYYY-MM-DD.', 'error')
             return redirect(url_for('create_case_file'))
 
-        # Check if the case number is unique before creating the CaseFile
+       
         existing_case = CaseFile.query.filter_by(case_number=case_number).first()
         if existing_case:
             flash('Case number must be unique.', 'error')
             return redirect(url_for('create_case_file'))
 
-        # Create a new case file with the provided information
+       
         new_case_file = CaseFile(case_number=case_number, case_name=case_name, date_opened=date_opened)
         db.session.add(new_case_file)
         db.session.commit()
@@ -403,20 +403,20 @@ def add_note_to_case(case_number):
     form = AddNoteForm()
 
     if form.validate_on_submit():
-        # Handle adding notes to the case file
+        
         note_text = form.note_text.data
         attachment = form.file.data
 
         if attachment:
-            # Handle file upload and store the filename in the note
+            
             filename = secure_filename(attachment.filename)
             attachment.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
         else:
             filename = None
 
-        # Create a new note with the provided information
+        
         new_note = CaseNote(note_text=note_text, attachment_filename=filename)
-        case_file.notes.append(new_note)  # Assuming 'notes' is a relationship in CaseFile model
+        case_file.notes.append(new_note)  
         db.session.commit()
 
     return redirect(url_for('view_case_file', case_number=case_number))
@@ -429,30 +429,28 @@ def view_case_file(case_number):
     case_file = CaseFile.query.filter_by(case_number=case_number).first_or_404()
 
     if request.method == 'POST':
-        # Handle adding notes to the case file
+        
         note_text = request.form.get('note')
         if note_text:
             new_note = CaseNote(note_text=note_text, case_file=case_file)
             db.session.add(new_note)
             db.session.commit()
 
-    # Fetch all notes associated with the case file
+    
     notes = CaseNote.query.filter_by(case_file_id=case_file.id).all()
 
     return render_template('view_case_file.html', case_file=case_file, notes=notes)
 
 
-# Add a route for editing a specific case file
+
 @app.route('/edit_case_file/<case_number>', methods=['POST'])
 @login_required
 def edit_case_file(case_number):
     case_file = CaseFile.query.filter_by(case_number=case_number).first()
     if case_file:
-        # Update the case file fields based on the form data
+        
         case_file.edit_field = request.form.get('edit_field')
-        # Update other fields as needed
-
-        # Add the new note to the case file
+     
         new_note_text = request.form.get('note')
         if new_note_text:
             new_note = CaseNote(note_text=new_note_text, case_file=case_file)
@@ -474,7 +472,7 @@ def view_case_files():
         case_files = []
 
         if search_query:
-            # Perform a case-insensitive search based on case number or case name
+            
             case_files = CaseFile.query.filter(or_(
                 CaseFile.case_number.ilike(f"%{search_query}%"),
                 CaseFile.case_name.ilike(f"%{search_query}%")
@@ -485,11 +483,11 @@ def view_case_files():
     return render_template('view_case_files.html', case_files=[], search_query='')
 
         
-# Route for admin panel
+
 @app.route('/admin_panel')
 @login_required
 def admin_panel():
-    # Check if the current user has admin privileges
+    
     if current_user.username == 'admin':
         staff_members = Staff.query.all()
         return render_template('admin_panel.html', staff_members=staff_members)
@@ -497,7 +495,7 @@ def admin_panel():
     flash('You do not have permission to access the admin panel.', 'danger')
     return redirect(url_for('menu'))
 
-# Route for adding a new staff member
+
 @app.route('/add_staff', methods=['GET', 'POST'])
 @login_required
 def add_staff():
@@ -531,18 +529,18 @@ def close_ticket(ticket_id):
 
     print(f"Before closing - Ticket {ticket.id} status: {ticket.status}")
 
-    # Update the ticket status to 'Closed'
+    
     ticket.status = 'Closed'
     db.session.commit()
 
     print(f"After closing - Ticket {ticket.id} status: {ticket.status}")
 
-    # Emit a socket event to notify the client
+    
     socketio.emit('ticket_closed', {'ticket_id': ticket.id}, room=str(ticket.user_id))
 
     return redirect(url_for('staff_dashboard'))
 
-# Route for deleting a staff member
+
 @app.route('/delete_staff/<int:staff_id>')
 @login_required
 def delete_staff(staff_id):
@@ -557,7 +555,7 @@ def delete_staff(staff_id):
     flash('You do not have permission to delete staff members.', 'danger')
     return redirect(url_for('menu'))
 
-# Route for staff login
+
 @app.route('/staff_login', methods=['GET', 'POST'])
 def staff_login():
     if request.method == 'POST':
@@ -587,24 +585,24 @@ def group_tickets_by_category(tickets):
         categories[category].append(ticket)
     return categories
 
-# Route for staff dashboard
+
 def get_closed_tickets():
     # Retrieve closed tickets from the database
     # For example, assuming you have a Ticket model
     closed_tickets = Ticket.query.filter_by(status='Closed').all()
     return closed_tickets
 
-# Route to render staff_dashboard
+
 @app.route('/staff_dashboard')
 @login_required
 def staff_dashboard():
-    # Get open tickets for the staff_dashboard
+    
     open_tickets = Ticket.query.filter_by(status='Open').all()
 
-    # Get closed tickets for the staff_dashboard
+    
     closed_tickets = get_closed_tickets()
 
-    # Other statistics calculations
+
     total_open_tickets = len(open_tickets)
     total_closed_tickets = len(closed_tickets)
 
@@ -619,13 +617,13 @@ def handle_file(data):
     file_content = data['file_content']
     file_name = data['file_name']
 
-    # Update the chat messages for the ticket with the file link
+    
     ticket = Ticket.query.get(ticket_id)
     file_link = f'<p><a href="{file_content}" target="_blank">{file_name}</a></p>'
     ticket.chat_messages += file_link
     db.session.commit()
 
-    # Broadcast the file link to all clients in the room (ticket_id)
+    
     emit('receive_message', {'message': file_link}, room=str(ticket_id))
 
 @socketio.on('close_ticket')
@@ -633,12 +631,12 @@ def close_ticket(data):
     ticket_id = data['ticket_id']
     print(f"Received close_ticket event for ticket ID: {ticket_id}")
 
-    # Assume you have code here to update the ticket status to 'Closed'
+    
     ticket = Ticket.query.get_or_404(ticket_id)
     ticket.status = 'Closed'
     db.session.commit()
 
-    # Emit a 'ticket_closed' event to notify the client
+    
     emit('ticket_closed', {'ticket_id': ticket_id}, broadcast=True)
 
 @socketio.on('request_chat_history')
@@ -646,44 +644,44 @@ def send_chat_history(data):
     ticket_id = data['ticket_id']
     ticket = Ticket.query.get_or_404(ticket_id)
     
-    # Emit the existing chat history to the user
+    
     emit('load_chat_history', {'chat_history': ticket.chat_messages})
 
 @socketio.on('new_live_chat_request')
 def handle_new_live_chat_request(data):
     staff_username = data['staff_username']
     
-    # Broadcast the request to the specific staff member's room
+    
     room = staff_username
     emit('receive_live_chat_request', room=room)
 
 @socketio.on('staff_message')
 def handle_staff_message(data):
-    # Handle staff-specific messages here
+    
     staff_username = data['staff_username']
     message = data['message']
 
-    # Broadcast the message to all clients connected to the staff member's room
+    
     room = staff_username
     emit('receive_staff_message', {'message': message}, room=room)
 
-# SocketIO event handler for chat
+
 @socketio.on('send_message')
 def handle_message(data):
     ticket_id = data['ticket_id']
     message = data['message']
 
-    # Update the chat messages for the ticket
+    
     ticket = Ticket.query.get(ticket_id)
-    ticket.chat_messages += f"<p>{message}</p>"  # You may need to format the message appropriately
+    ticket.chat_messages += f"<p>{message}</p>"  
 
     db.session.commit()
 
-    # Broadcast the message to all clients in the room (ticket_id)
+    
     emit('receive_message', {'message': message}, room=str(ticket_id))
 
 
-# Route for viewing user's tickets
+
 @app.route('/view_tickets')
 @login_required
 def view_tickets():
@@ -700,15 +698,15 @@ def view_ticket(ticket_id):
         uploaded_file = request.files['file']
 
         if new_message:
-            # Append the new message to existing chat_messages
+            
             ticket.chat_messages = f"{ticket.chat_messages}\n<p>{new_message}</p>"
 
         if uploaded_file:
-            # Handle file upload
+            
             filename = secure_filename(uploaded_file.filename)
             uploaded_file.save(os.path.join('your_upload_folder', filename))
 
-            # Add a message about the uploaded file to chat_messages
+            
             file_message = f"<p>Uploaded file: <a href='{url_for('static', filename=filename)}'>{filename}</a></p>"
             ticket.chat_messages = f"{ticket.chat_messages}\n{file_message}"
 
@@ -727,7 +725,7 @@ def signup():
         email = request.form.get('email')
         password = request.form.get('password')
 
-        # Hash the password before storing it
+        
         hashed_password = generate_password_hash(password).decode('utf-8')
 
         new_user = User(username=username, email=email, password=hashed_password)
@@ -775,7 +773,7 @@ def menu():
     if current_user.username == 'admin':
         return render_template('menu.html')
     elif hasattr(current_user, 'department'):
-        # Staff members are allowed access only to staff_dashboard
+        
         return redirect(url_for('staff_dashboard'))
     else:
         return render_template('menu.html')
@@ -787,12 +785,12 @@ def submit_ticket():
         category = request.form.get('category')
         description = request.form.get('description')
         chat_message = request.form.get('chat_message')
-        user_email = request.form.get('email')  # Corrected line
+        user_email = request.form.get('email')  
 
-        # Create a new ticket with the provided information
+        
         new_ticket = Ticket(category=category, description=description, 
                             user_id=current_user.id, chat_messages=chat_message, 
-                            user_email=user_email)  # Corrected line
+                            user_email=user_email)  
         db.session.add(new_ticket)
         db.session.commit()
 
@@ -805,7 +803,7 @@ def submit_ticket():
 
 if __name__ == '__main__':
     with app.app_context():
-        # Create tables if they do not exist
+        
         db.create_all()
 
     app.add_url_rule('/static/<filename>', 'uploaded_file', build_only=True)
