@@ -5,7 +5,7 @@ bcrypt = Bcrypt(app)
 
 def add_admin():
     admin_username = 'admin'
-    admin_password = 'Momdad3639#$'  # You should use a secure password and consider hashing it with bcrypt
+    admin_password = ''  # You should use a secure password and consider hashing it with bcrypt
     admin_email = 'admin@example.com'
 
     # Check if the admin user already exists
